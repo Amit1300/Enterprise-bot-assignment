@@ -1,0 +1,11 @@
+# Only the Dockerfile, requirements.txt and app.py are needed in the build context.
+.git
+.gitignore
+.dockerignore
+Dockerfile
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.log
