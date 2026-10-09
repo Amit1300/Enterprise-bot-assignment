@@ -27,19 +27,14 @@ if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
   log "kind cluster '$CLUSTER_NAME' already exists, reusing it"
 else
   log "Creating kind cluster '$CLUSTER_NAME'"
-  # Map host ports 80/443 into the node and label it so ingress-nginx's kind
-  # manifest schedules there (it uses hostPort + nodeSelector ingress-ready=true).
+  # Map host ports 80/443 on this machine into the node. The ingress-nginx kind
+  # manifest binds the controller to hostPort 80/443 on that node, so
+  # http://localhost/ reaches ingress-nginx.
   kind create cluster --name "$CLUSTER_NAME" --wait 120s --config - <<'EOF'
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
-    kubeadmConfigPatches:
-      - |
-        kind: InitConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "ingress-ready=true"
     extraPortMappings:
       - containerPort: 80
         hostPort: 80
