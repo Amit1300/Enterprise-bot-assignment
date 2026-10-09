@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # One-command, idempotent setup: kind cluster -> ingress-nginx -> image -> Helm release.
 # Safe to run repeatedly; every step either checks existing state or is declarative.
+#
+# Usage:
+#   ./setup.sh          install or update everything
+#   ./setup.sh delete   delete the kind cluster and the locally built images
 set -euo pipefail
 
 CLUSTER_NAME="demo"
@@ -15,6 +19,28 @@ KUBE_CONTEXT="kind-${CLUSTER_NAME}"
 
 log() { printf '\n==> %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+# Delete ---------------------------------------------------------------------
+# Everything (ingress-nginx, the release, the namespace) lives inside the kind
+# cluster, so deleting the cluster removes it all. Also safe to run twice.
+if [ "${1:-}" = "delete" ]; then
+  if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
+    log "Deleting kind cluster '$CLUSTER_NAME'"
+    kind delete cluster --name "$CLUSTER_NAME"
+  else
+    log "kind cluster '$CLUSTER_NAME' does not exist, nothing to delete"
+  fi
+  images="$(docker images -q "$IMAGE_REPO" | sort -u)"
+  if [ -n "$images" ]; then
+    log "Removing local '$IMAGE_REPO' images"
+    # shellcheck disable=SC2086
+    docker rmi -f $images >/dev/null
+  fi
+  log "Done."
+  exit 0
+elif [ -n "${1:-}" ]; then
+  die "unknown argument '$1' (usage: ./setup.sh [delete])"
+fi
 
 # 0. Prerequisites -----------------------------------------------------------
 for tool in docker kind kubectl helm curl; do

@@ -8,6 +8,9 @@ Prerequisites: Docker, kind, kubectl, helm (v3 or v4). Host ports 80/443 must be
 ./setup.sh      # creates kind cluster "demo", installs ingress-nginx, builds + loads
                 # the image, installs release "demo" into namespace "demo".
                 # Idempotent: safe to run again.
+
+./setup.sh delete   # remove everything: deletes the kind cluster (with ingress-nginx
+                    # and the release inside it) and the locally built images.
 ```
 
 ## Verify
