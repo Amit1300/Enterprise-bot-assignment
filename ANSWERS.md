@@ -33,3 +33,34 @@ anything in place.
   and gRPC, sticky sessions, client IP headers.
 - Things tied to the old IP or controller: firewall allow-lists,
   external-dns, and dashboards/alerts built on nginx metrics.
+
+
+**Experience with this**
+
+In my last organisation I migrated our dev environment from AWS ALB
+Ingress to Envoy Gateway. The source controller was different (ALB
+instead of ingress-nginx), but the approach was the same: install the
+Gateway controller next to the old one, rebuild the routes as HTTPRoutes,
+test them directly, and only then move traffic. That migration was dev
+only, so for these 40 Ingresses I would be more cautious: move
+low-risk hosts first and keep the old Ingress in place until the new
+path has been stable for a few days.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
