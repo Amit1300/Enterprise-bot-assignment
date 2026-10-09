@@ -1,6 +1,6 @@
 apiVersion: v2
 name: demo
-description: Demo Flask service with ConfigMap-driven settings and an Ingress
+description: Helm chart for the demo service
 type: application
 version: 0.1.0
 appVersion: "0.1.0"

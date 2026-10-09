@@ -2,8 +2,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}
-  labels:
-    app: {{ .Release.Name }}
 data:
   APP_NAME: {{ .Values.config.appName | quote }}
   VERSION: {{ .Values.config.version | quote }}

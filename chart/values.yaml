@@ -2,29 +2,19 @@ replicaCount: 2
 
 image:
   repository: demo-service
-  # setup.sh overrides this with a content hash of service/ on every run.
-  tag: dev
-  # kind has no registry: the image is side-loaded, so never try to pull it.
+  tag: latest
   pullPolicy: IfNotPresent
 
-# Rendered into the ConfigMap; exposed to the app as env vars and as files.
 config:
   appName: demo
   version: "0.1.0"
 
-# Must match the port gunicorn binds to in service/Dockerfile.
-containerPort: 8080
-
 service:
-  type: ClusterIP
   port: 80
 
 ingress:
-  enabled: true
-  className: nginx
   host: demo.local
 
-# Sized from an idle 2-worker gunicorn (~40-60Mi RSS). See README for reasoning.
 resources:
   requests:
     cpu: 50m
@@ -32,14 +22,3 @@ resources:
   limits:
     cpu: 250m
     memory: 128Mi
-
-probes:
-  readiness:
-    periodSeconds: 5
-    timeoutSeconds: 2
-    failureThreshold: 3
-  liveness:
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 2
-    failureThreshold: 3

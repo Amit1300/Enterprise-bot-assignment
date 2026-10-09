@@ -1,34 +1,34 @@
 # Enterprise Bot — DevOps Assignment
 
-## Run it
+## Run
 
-Prerequisites: Docker, kind, kubectl, helm (v3 or v4). Host ports 80/443 must be free.
+Needs Docker, kind, kubectl and helm. Ports 80 and 443 must be free.
 
 ```bash
-./setup.sh      # creates kind cluster "demo", installs ingress-nginx, builds + loads
-                # the image, installs release "demo" into namespace "demo".
-                # Idempotent: safe to run again.
-
-./setup.sh delete   # remove everything: deletes the kind cluster (with ingress-nginx
-                    # and the release inside it) and the locally built images.
+./setup.sh          # create cluster, install ingress-nginx, build image, deploy chart
+./setup.sh delete   # delete the cluster and the local images
 ```
+
+`setup.sh` can be run again safely.
 
 ## Verify
 
 ```bash
-kubectl -n demo get pods,svc,ingress            # 2/2 pods Running and Ready
+kubectl -n demo get pods,svc,ingress
 
-# Through the Ingress (no /etc/hosts edit needed):
 curl -H "Host: demo.local" http://localhost/
-# {"app":"demo","pod":"demo-<hash>","version":"0.1.0"}
-curl -i -H "Host: demo.local" http://localhost/healthz    # HTTP 200
-
-# Config changes are picked up without a restart (within ~60-90s, kubelet sync):
-kubectl -n demo patch configmap demo --type merge -p '{"data":{"APP_NAME":"changed"}}'
-curl -H "Host: demo.local" http://localhost/
-
-# Chart overrides:
-helm template demo ./chart --set replicaCount=3 --set config.appName=foo | grep -E 'replicas|APP_NAME'
+curl -H "Host: demo.local" http://localhost/healthz
 ```
 
-Optionally add `127.0.0.1 demo.local` to `/etc/hosts` and use `curl http://demo.local/`.
+Change the config without redeploying (takes up to ~1 minute to show up):
+
+```bash
+kubectl -n demo patch configmap demo --type merge -p '{"data":{"APP_NAME":"changed"}}'
+curl -H "Host: demo.local" http://localhost/
+```
+
+Check chart overrides:
+
+```bash
+helm template demo chart --set replicaCount=3 --set config.appName=foo | grep -E 'replicas|APP_NAME'
+```
