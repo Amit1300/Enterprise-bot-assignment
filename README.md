@@ -150,8 +150,6 @@ What I had to correct or watch:
 
 - It first installed the lab into the wrong kind cluster. I had it delete
   that cluster and make a clean one.
-- My first recording attempts were broken (nested `script` sessions, and the
-  log got printed into itself). That is why the start of
-  `part4-session.log` repeats.
+
 - For the port defect it first suggested an env var in five templates. I
   asked for a change only in `values.yaml` and used that.
