@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: demo-service:ci
+  TRIVY_VERSION: 0.68.1
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint chart
+        run: helm lint chart --strict
+
+      - name: Render with overrides
+        run: |
+          helm template demo chart --set replicaCount=3 --set config.appName=ci-check > rendered.yaml
+          grep -q 'replicas: 3' rendered.yaml
+          grep -q 'APP_NAME: "ci-check"' rendered.yaml
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t "$IMAGE" service
+
+      - name: Scan image with Trivy (fail on HIGH or CRITICAL)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" image \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            "$IMAGE"
