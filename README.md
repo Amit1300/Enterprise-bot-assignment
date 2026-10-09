@@ -1,4 +1,4 @@
-# Enterprise Bot — DevOps take-home
+# Enterprise Bot — DevOps Assignment
 
 ## Run it
 
