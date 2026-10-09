@@ -17,11 +17,11 @@ kubectl -n demo get pods,svc,ingress            # 2/2 pods Running and Ready
 
 # Through the Ingress (no /etc/hosts edit needed):
 curl -H "Host: demo.local" http://localhost/
-# {"app":"demo","pod":"demo-demo-<hash>","version":"0.1.0"}
+# {"app":"demo","pod":"demo-<hash>","version":"0.1.0"}
 curl -i -H "Host: demo.local" http://localhost/healthz    # HTTP 200
 
 # Config changes are picked up without a restart (within ~60-90s, kubelet sync):
-kubectl -n demo patch configmap demo-demo --type merge -p '{"data":{"APP_NAME":"changed"}}'
+kubectl -n demo patch configmap demo --type merge -p '{"data":{"APP_NAME":"changed"}}'
 curl -H "Host: demo.local" http://localhost/
 
 # Chart overrides:

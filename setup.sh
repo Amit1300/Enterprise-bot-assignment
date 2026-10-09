@@ -17,7 +17,7 @@ log() { printf '\n==> %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 # 0. Prerequisites -----------------------------------------------------------
-for tool in docker kind kubectl helm; do
+for tool in docker kind kubectl helm curl; do
   command -v "$tool" >/dev/null 2>&1 || die "'$tool' is required but not installed"
 done
 docker info >/dev/null 2>&1 || die "Docker daemon is not reachable"
@@ -94,6 +94,17 @@ for attempt in 1 2 3 4 5; do
   echo "helm attempt $attempt failed, retrying in 10s..."
   sleep 10
 done
+
+# 5. Wait for the Ingress ---------------------------------------------------------
+# `helm --wait` returns once the pods are Ready, but ingress-nginx picks up the new
+# endpoints a few seconds later and answers 503 until then. Wait for a real 200.
+log "Waiting for http://localhost/ (Host: demo.local) to return 200"
+for _ in $(seq 1 30); do
+  code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: demo.local' http://localhost/healthz || true)"
+  [ "$code" = "200" ] && break
+  sleep 2
+done
+[ "$code" = "200" ] || die "Ingress still returns HTTP $code after 60s"
 
 log "Done. Verify with:"
 cat <<EOF

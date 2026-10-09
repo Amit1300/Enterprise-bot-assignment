@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "demo.fullname" . }}
+  name: {{ .Release.Name }}
   labels:
-    {{- include "demo.labels" . | nindent 4 }}
+    app: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "demo.selectorLabels" . | nindent 6 }}
+      app: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        {{- include "demo.selectorLabels" . | nindent 8 }}
+        app: {{ .Release.Name }}
       annotations:
         # Roll the pods on `helm upgrade` when the config changes.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
@@ -31,13 +31,10 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
-          env:
-            - name: PORT
-              value: {{ .Values.containerPort | quote }}
           # Env vars satisfy "read from the environment" but are fixed at pod start...
           envFrom:
             - configMapRef:
-                name: {{ include "demo.fullname" . }}
+                name: {{ .Release.Name }}
           # ...so the same ConfigMap is mounted as files, which the kubelet refreshes
           # in place when the ConfigMap is patched. The app prefers these.
           volumeMounts:
@@ -64,4 +61,4 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ include "demo.fullname" . }}
+            name: {{ .Release.Name }}

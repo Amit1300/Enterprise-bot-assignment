@@ -12,6 +12,7 @@ config:
   appName: demo
   version: "0.1.0"
 
+# Must match the port gunicorn binds to in service/Dockerfile.
 containerPort: 8080
 
 service:

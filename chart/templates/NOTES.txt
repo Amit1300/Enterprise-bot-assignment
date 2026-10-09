@@ -1,4 +1,4 @@
-{{ include "demo.fullname" . }} is deployed ({{ .Values.replicaCount }} replicas).
+{{ .Release.Name }} is deployed ({{ .Values.replicaCount }} replicas).
 
   curl -H "Host: {{ .Values.ingress.host }}" http://localhost/
   curl -H "Host: {{ .Values.ingress.host }}" http://localhost/healthz
