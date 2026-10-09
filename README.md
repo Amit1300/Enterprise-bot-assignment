@@ -57,95 +57,101 @@ cd lab
 | CPU | 50m | 250m |
 | Memory | 64Mi | 128Mi |
 
-- **Memory request 64Mi.** The container runs gunicorn with two workers. I
-  measured about 56–58Mi in use under load, so 64Mi is what the pod really
-  needs and what the scheduler should reserve.
-- **Memory limit 128Mi.** Twice the request. It leaves room for spikes, and a
-  leak gets the pod OOM-killed and restarted before it can hurt the node.
-- **CPU request 50m.** The service does almost no work per request, so it is
-  idle most of the time. A small request keeps it cheap to schedule.
-- **CPU limit 250m.** Enough for short bursts and for start-up, low enough
-  that one pod cannot starve its neighbours on a small kind node.
+Why these numbers:
 
-These numbers come from one short local test, not from real traffic. In
-production I would set them from observed usage over days and revisit them.
+- **Memory request 64Mi.** The app runs gunicorn with 2 workers. When I
+  tested it under load it used about 56–58Mi. So 64Mi is what the pod really
+  needs.
+- **Memory limit 128Mi.** Double the request. It gives room for a spike, and
+  if there is a memory leak the pod is killed and restarted before it hurts
+  the node.
+- **CPU request 50m.** The app does very little work per request and is idle
+  most of the time, so a small request is enough.
+- **CPU limit 250m.** Enough for start-up and short bursts, but one pod
+  cannot take the whole CPU of a small kind node.
 
-## What I deliberately skipped, and the risk
+I got these numbers from one short local test, not from real traffic. In
+production I would look at real usage for some days and then change them.
+
+## What I skipped, and the risk
 
 | Skipped | Risk |
 |---|---|
-| TLS on the Ingress | Traffic is unencrypted. |
-| `/etc/hosts` entry for `demo.local` | You must pass `-H "Host: demo.local"`. I avoided needing sudo. |
-| HorizontalPodAutoscaler | Fixed at two replicas; no scaling under load. |
-| PodDisruptionBudget | A node drain could take both pods down at once. |
-| NetworkPolicy | Any pod in the cluster can reach the service. |
+| TLS on the Ingress | Traffic is not encrypted. |
+| `/etc/hosts` entry for `demo.local` | You have to use `-H "Host: demo.local"`. I did not want the script to need sudo. |
+| HorizontalPodAutoscaler | Always 2 replicas; it cannot scale with load. |
+| PodDisruptionBudget | A node drain can take both pods down together. |
+| NetworkPolicy | Any pod in the cluster can call the service. |
 | `preStop` sleep / graceful drain | A request can fail during a rolling update. |
-| Image pinned by tag, not digest | The base tag could be re-pushed with different content. |
-| Fixing the image scan findings | See the CI section: the Trivy step currently fails. |
-| Image registry | The image is loaded straight into kind; nothing is pushed anywhere. |
+| Base image pinned by tag, not digest | The tag could be pushed again with different content. |
+| Fixing the image scan findings | The Trivy step in CI fails right now (see CI section). |
+| Image registry | The image is loaded directly into kind and not pushed anywhere. |
 
 ## What I would change for production
 
-- TLS with cert-manager, and move from ingress-nginx (end-of-life) to the
+- TLS with cert-manager, and move from ingress-nginx (end-of-life) to
   Gateway API — see `ANSWERS.md`.
-- Push images to a registry, pin base images by digest, and deploy by digest.
-- A smaller base image (distroless or similar) to cut the CVE count, with
-  scheduled rebuilds so fixes are picked up.
-- HPA, PodDisruptionBudget, topology spread across nodes, and a `preStop`
-  hook so rolling updates drop no requests.
+- Push images to a registry, pin base images by digest, deploy by digest.
+- A smaller base image (distroless or similar) to reduce CVEs, and rebuild
+  it on a schedule so fixes come in.
+- HPA, PodDisruptionBudget, spread pods over nodes, and a `preStop` hook so
+  a rolling update drops no requests.
 - NetworkPolicy, `capabilities: drop: [ALL]` and a seccomp profile.
-- Metrics, structured logs and alerts; resource numbers based on real usage.
-- Deploy through CI/CD (GitOps) instead of a shell script.
+- Metrics, structured logs and alerts.
+- Deploy with CI/CD (GitOps) instead of a shell script.
 
 ## Part 4 status
 
-`./scenario.sh verify` is at **7 of 11**, not all green.
+`./scenario.sh verify` is at **7 of 11**. It is not all green.
 
-I fixed seven chart defects (Job `restartPolicy`, missing numeric `runAsUser`,
-container port, gateway `BACKEND_URL` namespace, reporter RoleBinding subject,
-worker cache volume, metrics CPU over the LimitRange).
+I fixed 7 problems in the chart: Job `restartPolicy`, missing numeric
+`runAsUser`, wrong container port, gateway `BACKEND_URL` namespace, reporter
+RoleBinding subject, worker cache volume, and metrics CPU above the
+LimitRange.
 
-The four remaining failures all come from the reporter. After the RBAC fix it
+The 4 checks still failing all come from the reporter. After the RBAC fix it
 is allowed to list pods, but it logs
-`parse pod list: unexpected end of JSON input` and never becomes Ready. The
-application appears to read only the first 1 KB of the API response, and the
-real pod list is far larger. I found no chart setting that changes this, and I
-did not remove the readiness probe or disable the workload to hide it. The
-`backend` and `gateway` checks also report FAIL in `verify`, but both answer
-correctly when probed directly. Details and evidence are in `lab/FINDINGS.md`.
+`parse pod list: unexpected end of JSON input` and never becomes Ready. From
+what I can see the app reads only the first 1 KB of the API answer, and the
+real pod list is much bigger. I found nothing in the chart that changes this.
+I did not remove the readiness probe or disable the reporter to hide it.
+`verify` also shows FAIL for backend and gateway, but both are Ready and
+working. Details and output are in `lab/FINDINGS.md`.
 
 ## CI (bonus)
 
 `.github/workflows/ci.yml` runs on every push and pull request:
 
-1. `helm lint chart --strict`, plus a render with overrides.
+1. `helm lint chart --strict`, and a render with overrides.
 2. `docker build` of `service/`.
-3. Trivy scan of the image, failing on HIGH or CRITICAL findings.
+3. Trivy scan of the image. It fails on HIGH or CRITICAL.
 
-**The Trivy step currently fails**, and I left it that way rather than weaken
-the gate. Scanning the image locally with Trivy 0.68.1 gave 51 HIGH and 0
-CRITICAL findings, all in Debian packages from the `python:3.12-slim` base
-image and none in the Python dependencies. 44 have no fix available yet; 7
-(OpenSSL and PCRE2) are fixable by rebuilding on an updated base image. The
-real fix is a smaller base image, listed above.
+**The Trivy step fails right now.** I left it like this and did not weaken
+the check. A local scan with Trivy 0.68.1 gave 51 HIGH and 0 CRITICAL. All
+of them are in Debian packages from the `python:3.12-slim` base image, none
+in Flask or gunicorn. 44 have no fix yet. 7 (OpenSSL and PCRE2) would be
+fixed by rebuilding on a newer base image. The real fix is a smaller base
+image, which is in my production list above.
 
 ## How I used AI
 
-I used **Claude Code** (Anthropic's CLI assistant) throughout.
+I used **Claude Code** (AI assistant in the terminal) in this assignment.
 
-- **Parts 1–3:** Claude helped write and simplify the service, Dockerfile,
-  chart and `setup.sh`. I ran and tested them myself.
-- **Part 4:** I ran the commands in my own cluster and applied the fixes.
-  Claude explained the output and, after the first defect, identified most of
-  the causes and proposed the fixes. It also analysed the lab image to find
-  why the reporter still fails.
-- **Parts 5 and 6 and the CI workflow:** drafted by Claude, reviewed by me.
+- **Parts 1–3:** I used it to help write and simplify the service, the
+  Dockerfile, the chart and `setup.sh`. I ran and tested them myself.
+- **Part 4:** I did the debugging in my own cluster. I used Claude to help
+  me debug: to get the right commands, to get hints on where to look, to
+  explain output I did not understand, and to check my fixes.
+- **Parts 5 and 6, the CI workflow and the wording of `FINDINGS.md`:** I
+  used it to help write and clean up the text, and I checked it against my
+  own session.
 
-What I had to correct or watch for:
+What I had to correct or watch:
 
-- Claude first installed the lab into the wrong kind cluster; I had it
-  recreate a clean cluster.
-- My first session recording was unusable (nested `script` sessions, and the
-  log was printed into itself), which Claude spotted.
-- Claude's first suggestion for the port defect was an env var in five
-  templates; I chose a single change in `values.yaml` instead.
+- It first installed the lab into the wrong kind cluster. I had it delete
+  that cluster and make a clean one.
+- My first recording attempts were broken (nested `script` sessions, and the
+  log got printed into itself). That is why the start of
+  `part4-session.log` repeats.
+- For the port defect it first suggested an env var in five templates. I
+  asked for a change only in `values.yaml` and used that.
