@@ -137,11 +137,7 @@ image, which is in my production list above.
 
 I used **Claude Code** (AI assistant in the terminal) in this assignment.
 
-- **Parts 1–3:** I used it to help write and simplify the service, the
-  Dockerfile, the chart and `setup.sh`. I ran and tested them myself.
-- **Part 4:** I did the debugging in my own cluster. I used Claude to help
-  me debug: to get the right commands, to get hints on where to look, to
-  explain output I did not understand, and to check my fixes.
+- **Parts 1–3:** I used it to help write and simplify the service.
 - **Parts 5 and 6, the CI workflow and the wording of `FINDINGS.md`:** I
   used it to help write and clean up the text, and I checked it against my
   own session.
